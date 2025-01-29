@@ -227,7 +227,6 @@ def integrate_cv(data, model = 'simpson'):
     return charge
 
 
-
 def PlotSpecificCap(path): 
     """
     Plots specific capacitance for different charge/discharge currents

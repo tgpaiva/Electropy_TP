@@ -241,9 +241,7 @@ def calculate_capacitance(dataset, current_values = 1, saveresults = 'y', **kwar
         Energy_density_charge = np.concatenate((Energy_density_charge, energy_density_factor * q_charge))
         Energy_density_discharge = np.concatenate((Energy_density_discharge, energy_density_factor * q_discharge))
 
- 
     # Write the results dataframe
-
     outresults = pd.DataFrame({'Q charge (F/g)': Capacitance_charge, 'Q discharge (F/g)': Capacitance_discharge, 'Coulombic efficiency (%)': Coloumbiceff, 'Charge Time': charge_times, 'Discharge Time': discharge_times, 'Energe density charge' : Energy_density_charge, 'Energe density discharge' : Energy_density_discharge })
     
     if saveresults == 'y':
