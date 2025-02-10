@@ -113,36 +113,70 @@ def parse_cv(filename):
     return sorted_data_list
 
 
-def parse_gcd(filename, start = 2, step = 3):
-    """
-    Parse Gamry CV from DTA
-    """
-    CV_text_files = [list(filename[n]) for n in range(start,len(filename), step)]
+# def parse_gcd(filename, start = 2, step = 3):
+#     """
+#     Parse Gamry CV from DTA
+#     """
+#     CV_text_files = [list(filename[n]) for n in range(start, len(filename), step)]
+#     exp_start = [_search_gcd_curve(txtfile) for txtfile in CV_text_files]
+#     current = [(_current_value(txtfile)) for txtfile in CV_text_files]
 
-    exp_start = [_search_gcd_curve(txtfile) for txtfile in CV_text_files]
+#     sorted_data_list = []
 
-    current = [(_current_value(txtfile)) for txtfile in CV_text_files]
-    sorted_data_list = []
+#     for n in range(len(exp_start)):
 
-    for n in range(len(exp_start)):
-
-        start = exp_start[n]
-        data = CV_text_files[n]
+#         skip_header = exp_start[n] + 3
+#         data = CV_text_files[n]
         
-        sorted_data = [[line.split('\t')[2], line.split('\t')[3]] for line in data[start + 3::]]
+#         sorted_data = [[line.split('\t')[2], line.split('\t')[3]] for line in data[skip_header::]]
 
-        sorted_data_list.append(GamryGCD(start, sorted_data, current[n]))
+#         sorted_data_list.append(GamryGCD(n, sorted_data, current[n]))
 
-    return sorted_data_list
+#     return sorted_data_list
 
-def plot_cv(DatatoPlot, normalize = False, active_mass = None, colors = None, saveplot = 'y', labels = None, **kwargs):
+
+# new revised function
+def parse_gcd(filename: list, start: int = 2, step: int = 3) -> list:
+    """
+    Parse Gamry CV data from a DTA file.
+    """
+    # Extract target text files based on start and step
+    cv_text_files = [list(filename[i]) for i in range(start, len(filename), step)]
+
+    # Parse experiment start lines and current values
+    exp_starts = [_search_gcd_curve(txt) for txt in cv_text_files]
+    currents = [_current_value(txt) for txt in cv_text_files]
+
+    parsed_data = []
+
+    for i, exp_start in enumerate(exp_starts):
+
+        if exp_start is None:
+            continue  # Skip this entry if exp_start is invalid
+
+        skip_header = exp_start + 3
+        data = cv_text_files[i][skip_header:]
+        
+        # Extract relevant columns from each data line
+        sorted_data = [line.split('\t')[2:4] for line in data]
+        parsed_data.append(GamryGCD(i, sorted_data, currents[i]))
+
+    return parsed_data
+
+
+
+
+
+def plot_cv(DatatoPlot, normalize = False, active_mass = 0.100E-3, colors = None, saveplot = 'y', labels = None, **kwargs):
     """
     Plots the CV data
-    """
+    To  normalize current to density current supply an measurement for the active mass. Default 0.1 mg
+    """    
 
     CV_3rdcurve = [pd.DataFrame(CVcurve.data, columns = ['Potential', 'Current', 'Time'], dtype = float) for CVcurve in DatatoPlot]
 
 # new ####
+
     if normalize == True:
 
         for n in range(len(CV_3rdcurve)):
@@ -187,68 +221,67 @@ def plot_cv(DatatoPlot, normalize = False, active_mass = None, colors = None, sa
             raise Exception('Please specify a figure output filename')
 
     return 
+
+
     
 
-def calculate_capacitance(dataset, current_values = 1, saveresults = 'y', **kwargs):
+def calculate_capacitance(dataset, current_values = 1, ohmic_drop = True, saveresults = 'n', **kwargs):
     """
     calculates the capacitance of GCD curves
     Default current value 1 A/g otherwise input a list of current density or integer value
     """
-    data_list = [pd.DataFrame(GCDcurve.data, columns = ['Time', 'Potential'], dtype = float)  for GCDcurve in dataset]
-    
-    # Initialize numpy arrays
-    
-    Capacitance_charge = np.array([])
-    Capacitance_discharge = np.array([])
-    Coloumbiceff = np.array([])
-    charge_times = np.array([])
-    discharge_times = np.array([])
-    Energy_density_charge = np.array([])
-    Energy_density_discharge = np.array([])
+    data_list = [
+        pd.DataFrame(GCDcurve.data, columns=['Time', 'Potential'], dtype=float)
+        for GCDcurve in dataset
+    ]
 
-    # checks if current_values is a int or a list of current ints
-    
-    if isinstance(current_values, int) == True:
-        current_values = np.repeat(current_values, len(data_list)) 
+    if isinstance(current_values, int):
+        current_values = [current_values] * len(data_list)
 
-    for GCD_curve, current_value in zip(range(len(data_list)), current_values):
+    results = []
 
-        # Extract charge and discharge times
+    for df, current_value in zip(data_list, current_values):
+        # Handle charge time selection robustly
+        max_potential = df['Potential'].max()
+        charge_time_vals = df.loc[df['Potential'] == max_potential, 'Time']
         
-        max_potential = data_list[GCD_curve]['Potential'].max()
-        charge_time = np.array(data_list[GCD_curve]['Time'].iloc[
-            np.where(data_list[GCD_curve]['Potential'] == max_potential)
-        ])
-        discharge_time = np.array(data_list[GCD_curve]['Time'].iloc[-1:]) - charge_time
+        charge_time = charge_time_vals.iloc[0]
 
-        # Concatenate charge and discharge times
-        
-        charge_times = np.concatenate((charge_times, charge_time))
-        discharge_times = np.concatenate((discharge_times, discharge_time))
+        discharge_start_idx = (
+            np.where(df['Potential'] == max_potential)[0][0] + 1
+        )
 
-        # Calculate charge and discharge capacities
-        
+        discharge_time = (
+            df['Time'].iloc[-1] - df['Time'].iloc[discharge_start_idx]
+            if ohmic_drop and discharge_start_idx < len(df)
+            else df['Time'].iloc[-1] - charge_time
+        )
+
         q_charge = charge_time * current_value / max_potential
         q_discharge = discharge_time * current_value / max_potential
 
-        # Compute and store performance metrics
-        
-        Coloumbiceff = np.concatenate((Coloumbiceff, (discharge_time / charge_time) * 100))
-        Capacitance_charge = np.concatenate((Capacitance_charge, q_charge))
-        Capacitance_discharge = np.concatenate((Capacitance_discharge, q_discharge))
-        
+        coulombic_efficiency = (discharge_time / charge_time) * 100
         energy_density_factor = max_potential ** 2 / 2
-        Energy_density_charge = np.concatenate((Energy_density_charge, energy_density_factor * q_charge))
-        Energy_density_discharge = np.concatenate((Energy_density_discharge, energy_density_factor * q_discharge))
+        energy_charge = energy_density_factor * q_charge
+        energy_discharge = energy_density_factor * q_discharge
 
-    # Write the results dataframe
-    outresults = pd.DataFrame({'Q charge (F/g)': Capacitance_charge, 'Q discharge (F/g)': Capacitance_discharge, 'Coulombic efficiency (%)': Coloumbiceff, 'Charge Time': charge_times, 'Discharge Time': discharge_times, 'Energe density charge' : Energy_density_charge, 'Energe density discharge' : Energy_density_discharge })
-    
+        results.append({
+            'Q charge (F/g)': q_charge,
+            'Q discharge (F/g)': q_discharge,
+            'Coulombic efficiency (%)': coulombic_efficiency,
+            'Charge Time': charge_time,
+            'Discharge Time': discharge_time,
+            'Energy density charge': energy_charge,
+            'Energy density discharge': energy_discharge,
+        })
+
+    outresults = pd.DataFrame(results)
+
     if saveresults == 'y':
-        try:
-            outresults.to_excel(home_folder + '/Desktop/' + kwargs['outname'] + '.xlsx')
-        except KeyError:   
-            raise Exception('Please specify an output filename for the excel file')
+        outname = kwargs.get('outname')
+        if not outname:
+            raise Exception('Please specify an output filename for the Excel file.')
+        outresults.to_excel(os.path.join(home_folder, 'Desktop', f'{outname}.xlsx'), index=False)
 
     return outresults
 
@@ -274,14 +307,14 @@ def plot_gcd(dataset, ylimits = [0, 0.85], colors = None, labels = None, saveplo
     # actually plot
 
     for index, color in zip(range(len(data_list)), colors):
-        ax.plot(data_list[index]['Time'], data_list[index]['Potential'], color = color, linewidth = 2, marker = None)
+        ax.plot(data_list[index]['Time'], data_list[index]['Potential'], color = color, linestyle = '', markersize = 1, marker = 'o')
         
     # Axis decoration
 
     ax.set_xlabel('Time', weight = 'bold')
     ax.set_ylabel('Potential (V) vs SCE', weight = 'bold')
     ax.set_ylim(ylimits)
-    ax.legend(labels, frameon = False)
+    ax.legend(labels, frameon = False, markerscale=6)
     fig.tight_layout()
 
     if saveplot == 'y':

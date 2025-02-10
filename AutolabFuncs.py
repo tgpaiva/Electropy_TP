@@ -6,6 +6,8 @@ import re
 from natsort import natsorted
 from scipy.integrate import simpson, trapz
 
+home_folder = os.path.expanduser('~')
+
 SMALL_SIZE = 10
 MEDIUM_SIZE = 14
 BIGGER_SIZE = 20
@@ -19,12 +21,11 @@ plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
-def ImportData(path):
+def import_data(path):
     """
     Import data and define outname
     """
     files = os.listdir(path)
-
     files_txt = [i for i in files if i.endswith('.txt')]
     files_txt = natsorted(files_txt)
     data = [pd.read_csv(path + dataset, delimiter = '\t', header = 0) for dataset in files_txt]
@@ -73,7 +74,7 @@ def plot_pulsed_deposit_data(data):
     
     return
 
-def orderCVdata(data):
+def _order_cv_data(data):
     """
     Return dictionary with CV data arranged in a Python Dic with scan rates as the key
     """
@@ -84,38 +85,32 @@ def orderCVdata(data):
 
     return dataCV
 
-def plot_gcd_curve(dataset, save_plot='n', save_results='n', outname='GCD', labels = None):
-    """
-    Plot GCD curves at different current values and optionally save the plot and results.
+def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, current_values = None, outname = 'GCD',):
+    """ 
+    Calculate performance metrics from GCD curves 
     """
     # Prepare datasets
-    df = [pd.concat([dataset[i], dataset[18 + i]]) for i in range(2, 18, 3)]
+
+    df = [pd.concat([dataset[i], dataset[18 + i]], ignore_index = True) for i in range(2, 18, 3)]
     df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0], frame['WE(1).Potential (V)']], axis=1) for frame in df]
 
-    # Plot settings
-    fig, ax = plt.subplots()
-    colors = ['#0a1170', '#cc9456', '#7a2233', '#be3b49', '#6c727a', '#6b9fe3']
-    
-    if labels == None:
-        labels = ['5 mV/s', '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s', '200 mV/s', '300 mV/s', '400 mV/s', '500 mV/s']
+   # Calculations
 
-    # Plot data
-    for frame, color in zip(df, colors):
-        ax.plot(frame['Time (s)'], frame['WE(1).Potential (V)'], color=color, linewidth=2)
+    if current_values == None:
+        current_values = [0.5, 1, 2, 4, 8, 10]
 
-    ax.set_xlabel('Time (s)', weight='bold')
-    ax.set_ylabel('Potential (V) vs SCE', weight='bold')
-    ax.legend(labels, frameon=False)
-    ax.set_ylim([-0.1, 0.9])
-    fig.tight_layout()
-
-    # Calculations
-    current_values = [0.5, 1, 2, 4, 8, 10]
     results = []
 
     for frame, current in zip(df, current_values):
+
         charge_time = frame['Time (s)'][frame['WE(1).Potential (V)'].idxmax()]
-        discharge_time = frame['Time (s)'].iloc[-1] - charge_time
+
+        if ohmic_drop == False:
+            discharge_time = frame['Time (s)'].iloc[-1] - charge_time
+
+        elif ohmic_drop == True:
+            discharge_time = frame['Time (s)'].iloc[-1] - frame['Time (s)'][int(frame['WE(1).Potential (V)'].idxmax()) + 1]
+
 
         q_charge = charge_time * current / frame['WE(1).Potential (V)'].max()
         q_discharge = discharge_time * current / frame['WE(1).Potential (V)'].max()
@@ -131,18 +126,54 @@ def plot_gcd_curve(dataset, save_plot='n', save_results='n', outname='GCD', labe
             'Energy density discharge': (frame['WE(1).Potential (V)'].max() ** 2 * q_discharge) / 2,
         })
 
-    # Save plot
-    if save_plot == 'y':
-        plt.savefig(f'/Users/tiagopaiva/{outname}.pdf')
-
     # Save results
+
     if save_results == 'y':
-        pd.DataFrame(results).to_excel(f'/Users/tiagopaiva/{outname}.xlsx', index=False)
+        pd.DataFrame(results).to_excel(os.path.join(home_folder, 'Desktop', outname + '.xlsx'), index=False)
 
     return
 
 
-def plotCV(data, saveplot = 'n', normalize =  False, outname = 'CV', active_mass = None, colors = None ,labels = None):
+def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', labels = None):
+    """
+    Plot GCD curves at different current values and optionally save the plot and results.
+    """
+    # Prepare datasets
+
+    df = [pd.concat([dataset[i], dataset[18 + i]]) for i in range(2, 18, 3)]
+    df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0], frame['WE(1).Potential (V)']], axis=1) for frame in df]
+
+    # Plot settings
+
+    fig, ax = plt.subplots()
+    colors = ['#0a1170', '#cc9456', '#7a2233', '#be3b49', '#6c727a', '#6b9fe3']
+    
+    if labels == None:
+        labels = ['5 mV/s', '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s', '200 mV/s', '300 mV/s', '400 mV/s', '500 mV/s']
+
+    # Plot data
+
+    if ylim == None:
+        ylim = [-0.1, 0.9]
+
+    for frame, color in zip(df, colors):
+        ax.plot(frame['Time (s)'], frame['WE(1).Potential (V)'], color=color, linestyle = '', marker = 'o', markersize = 1)
+
+    ax.set_xlabel('Time (s)', weight = 'bold')
+    ax.set_ylabel('Potential (V) vs SCE', weight = 'bold')
+    ax.legend(labels, frameon=False)
+    ax.set_ylim(ylim)
+    fig.tight_layout()
+
+    # Save plot
+
+    if save_plot == 'y':
+        plt.savefig(os.path.join(home_folder, 'Desktop', outname + '.pdf' ))
+
+    return
+
+
+def plot_cv(data, saveplot = 'n',  normalize = False, outname = 'CV', active_mass = None, colors = None ,labels = None):
     """
     Plot all CV curves at different scan rates for the same sample 
     """
@@ -182,12 +213,11 @@ def plotCV(data, saveplot = 'n', normalize =  False, outname = 'CV', active_mass
 
     ax.legend(labels, frameon = False, loc = 'lower right', ncols = 2 )
     fig.tight_layout()
-    # ax.set_ylim([-0.075, 0.075])
 
     # Save plot
 
     if saveplot == 'y':
-        plt.savefig('/Users/tiagopaiva/' + outname + '.pdf')
+        plt.savefig(os.path.join(home_folder, 'Desktop', outname + '.pdf' ))
     
     return CV_3rdcurve
 
@@ -206,7 +236,7 @@ def integrate_cv(data, model = 'simpson'):
     current = data['WE(1).Current (A)'].values
 
     if model == 'simpson':
-        charge = simpson(current, potential) 
+        charge = simpson(current, x = potential) 
 
     elif model == 'trapz':
         charge = trapz(current, x = potential)
@@ -227,7 +257,7 @@ def integrate_cv(data, model = 'simpson'):
     return charge
 
 
-def PlotSpecificCap(path): 
+def plot_specific_cap(path): 
     """
     Plots specific capacitance for different charge/discharge currents
     """
@@ -256,7 +286,7 @@ def PlotSpecificCap(path):
 
     return 
 
-def PlotMultipleCV(pathtofiles, CVscan_rate = '50 mV/s'):
+def plot_multiple_cv(pathtofiles, CVscan_rate = '50 mV/s'):
     """
     Plots CV from different samples
     takes as first argument list of paths to files
@@ -268,11 +298,11 @@ def PlotMultipleCV(pathtofiles, CVscan_rate = '50 mV/s'):
 
     for path in pathtofiles:
 
-        name_out, cvdata_out = ImportData(path)
+        name_out, cvdata_out = import_data(path)
         names.append(name_out)
         cvdata.append(cvdata_out)
 
-    CV_data_dic = [orderCVdata(data) for data in cvdata]
+    CV_data_dic = [_order_cv_data(data) for data in cvdata]
 
     fig, ax = plt.subplots() 
     # colors = ['#0a1170','#cc9456','#7a2233','#be3b49', '#6c727a', '#6b9fe3']
@@ -298,11 +328,11 @@ def PlotMultipleCV(pathtofiles, CVscan_rate = '50 mV/s'):
     return 
 
 
-def PlotMultipleGCD(pathtofiles, GCD_current = '0.5'):
-    """
-    Plot 
-    """
-    return 
+# def PlotMultipleGCD(pathtofiles, GCD_current = '0.5'):
+#     """
+#     Plot 
+#     """
+#     return 
 
 
 
