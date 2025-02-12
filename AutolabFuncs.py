@@ -5,8 +5,9 @@ import os
 import re 
 from natsort import natsorted
 from scipy.integrate import simpson, trapz
+from pathlib import Path
 
-home_folder = os.path.expanduser('~')
+HOME_FOLDER = Path.home()
 
 SMALL_SIZE = 10
 MEDIUM_SIZE = 14
@@ -30,10 +31,10 @@ def import_data(path):
     files = os.listdir(path)
     files_txt = [i for i in files if i.endswith('.txt')]
     files_txt = natsorted(files_txt)
-    data = [pd.read_csv(path + dataset, delimiter = '\t', header = 0) for dataset in files_txt]
+    data = [pd.read_csv(path / dataset, delimiter = '\t', header = 0) for dataset in files_txt]
 
     # names = [name for name in data.columns]
-    name = re.split('/', path)[-2]
+    name = re.split('/', str(path))[-1]
 
     return name, data 
 
@@ -90,6 +91,7 @@ def _order_cv_data(data):
 def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, current_values = None, outname = 'GCD',):
     """ 
     Calculate performance metrics from GCD curves 
+    Current_values if none are specified the default is 0.5, 1, 2, 4, 8, 10 A/g
     """
     # Prepare datasets
 
@@ -109,13 +111,14 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
 
         if ohmic_drop == False:
             discharge_time = frame['Time (s)'].iloc[-1] - charge_time
+            max_potential = frame['WE(1).Potential (V)'].max()
 
         elif ohmic_drop == True:
             discharge_time = frame['Time (s)'].iloc[-1] - frame['Time (s)'][int(frame['WE(1).Potential (V)'].idxmax()) + 1]
+            max_potential = frame['WE(1).Potential (V)'][int(frame['WE(1).Potential (V)'].idxmax()) + 1]
 
-
-        q_charge = charge_time * current / frame['WE(1).Potential (V)'].max()
-        q_discharge = discharge_time * current / frame['WE(1).Potential (V)'].max()
+        q_charge = charge_time * current / max_potential
+        q_discharge = discharge_time * current / max_potential
 
         results.append({
             'Current': current,
@@ -131,7 +134,7 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
     # Save results
 
     if save_results == 'y':
-        pd.DataFrame(results).to_excel(os.path.join(home_folder, 'Desktop', outname + '.xlsx'), index=False)
+        pd.DataFrame(results).to_excel(HOME_FOLDER / 'Desktop' / f'{outname}.xlsx', index=False)
 
     return
 
@@ -163,14 +166,14 @@ def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', label
 
     ax.set_xlabel('Time (s)', weight = 'bold')
     ax.set_ylabel('Potential (V) vs SCE', weight = 'bold')
-    ax.legend(labels, frameon=False)
+    ax.legend(labels, frameon=False,  markerscale=6)
     ax.set_ylim(ylim)
     fig.tight_layout()
 
     # Save plot
 
     if save_plot == 'y':
-        plt.savefig(os.path.join(home_folder, 'Desktop', f'{outname}.pdf' ))
+        plt.savefig(HOME_FOLDER / 'Desktop' / f'{outname}.pdf' )
 
     return
 
@@ -219,9 +222,9 @@ def plot_cv(data, saveplot = 'n',  normalize = False, outname = 'CV', active_mas
     # Save plot
 
     if saveplot == 'y':
-        plt.savefig(os.path.join(home_folder, 'Desktop', f'{outname}.pdf'))
+        plt.savefig(HOME_FOLDER / 'Desktop' / f'{outname}.pdf')
     
-    return CV_3rdcurve
+    return
 
 
 def integrate_cv(data, model = 'simpson'):
@@ -307,6 +310,7 @@ def plot_multiple_cv(pathtofiles, CVscan_rate = '50 mV/s'):
     CV_data_dic = [_order_cv_data(data) for data in cvdata]
 
     fig, ax = plt.subplots() 
+
     # colors = ['#0a1170','#cc9456','#7a2233','#be3b49', '#6c727a', '#6b9fe3']
 
     colors = [

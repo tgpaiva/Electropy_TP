@@ -2,10 +2,11 @@ import pandas as pd
 import os
 import re
 import numpy as np
+from pathlib import Path
 import matplotlib.pyplot as plt
 from natsort import natsorted
 
-home_folder = os.path.expanduser('~')
+HOME_FOLDER = Path.home()
 
 SMALL_SIZE = 10
 MEDIUM_SIZE = 14
@@ -90,7 +91,7 @@ def import_gamry(pathtofiles):
     files = os.listdir(pathtofiles)
     files = natsorted(files)
     files_txt = [i for i in files if i.endswith('.DTA')]
-    text_file = [_read_file(pathtofiles + txtfile) for txtfile in files_txt]
+    text_file = [_read_file(pathtofiles / txtfile) for txtfile in files_txt]
 
     return text_file
 
@@ -115,29 +116,6 @@ def parse_cv(filename):
     return sorted_data_list
 
 
-# def parse_gcd(filename, start = 2, step = 3):
-#     """
-#     Parse Gamry CV from DTA
-#     """
-#     CV_text_files = [list(filename[n]) for n in range(start, len(filename), step)]
-#     exp_start = [_search_gcd_curve(txtfile) for txtfile in CV_text_files]
-#     current = [(_current_value(txtfile)) for txtfile in CV_text_files]
-
-#     sorted_data_list = []
-
-#     for n in range(len(exp_start)):
-
-#         skip_header = exp_start[n] + 3
-#         data = CV_text_files[n]
-        
-#         sorted_data = [[line.split('\t')[2], line.split('\t')[3]] for line in data[skip_header::]]
-
-#         sorted_data_list.append(GamryGCD(n, sorted_data, current[n]))
-
-#     return sorted_data_list
-
-
-# new revised function
 def parse_gcd(filename: list, start: int = 2, step: int = 3) -> list:
     """
     Parse Gamry CV data from a DTA file.
@@ -166,9 +144,6 @@ def parse_gcd(filename: list, start: int = 2, step: int = 3) -> list:
     return parsed_data
 
 
-
-
-
 def plot_cv(DatatoPlot, normalize = False, active_mass = 0.100E-3, colors = None, saveplot = 'y', labels = None, **kwargs):
     """
     Plots the CV data
@@ -177,15 +152,11 @@ def plot_cv(DatatoPlot, normalize = False, active_mass = 0.100E-3, colors = None
 
     CV_3rdcurve = [pd.DataFrame(CVcurve.data, columns = ['Potential', 'Current', 'Time'], dtype = float) for CVcurve in DatatoPlot]
 
-# new ####
-
     if normalize == True:
 
         for n in range(len(CV_3rdcurve)):
 
             CV_3rdcurve[n]['Current'] = CV_3rdcurve[n]['Current'] / active_mass
-
-# new ####
 
     # Prepare Plot 
 
@@ -212,13 +183,12 @@ def plot_cv(DatatoPlot, normalize = False, active_mass = 0.100E-3, colors = None
 
     ax.legend(labels, frameon = False, loc = 'lower right', ncols = 2)
     fig.tight_layout()
-    # ax.set_ylim([-0.075, 0.075])
 
     # Save plot
 
     if saveplot == 'y':
         try:
-            plt.savefig(os.path.join(home_folder , '/Desktop/' ,f"{kwargs['outname']}.pdf"))  # default saves to the desktop
+            plt.savefig(HOME_FOLDER / 'Desktop' / f"{kwargs['outname']}.pdf")  # default saves to the desktop
         except KeyError:   
             raise Exception('Please specify a figure output filename')
 
@@ -226,8 +196,7 @@ def plot_cv(DatatoPlot, normalize = False, active_mass = 0.100E-3, colors = None
 
 
     
-
-def calculate_capacitance(dataset, current_values = 1, ohmic_drop = True, saveresults = 'n', **kwargs):
+def calculate_capacitance(dataset, current_values = 1, saveresults = 'n', **kwargs):
     """
     calculates the capacitance of GCD curves
     Default current value 1 A/g otherwise input a list of current density or integer value
@@ -235,7 +204,7 @@ def calculate_capacitance(dataset, current_values = 1, ohmic_drop = True, savere
     data_list = [
         pd.DataFrame(GCDcurve.data, columns=['Time', 'Potential'], dtype=float)
         for GCDcurve in dataset
-    ]
+                ]
 
     if isinstance(current_values, int):
         current_values = [current_values] * len(data_list)
@@ -255,9 +224,11 @@ def calculate_capacitance(dataset, current_values = 1, ohmic_drop = True, savere
 
         discharge_time = (
             df['Time'].iloc[-1] - df['Time'].iloc[discharge_start_idx]
-            if ohmic_drop and discharge_start_idx < len(df)
-            else df['Time'].iloc[-1] - charge_time
         )
+
+        max_potential = df['Potential'].iloc[discharge_start_idx]
+
+        max_potential = max_potential              
 
         q_charge = charge_time * current_value / max_potential
         q_discharge = discharge_time * current_value / max_potential
@@ -283,7 +254,7 @@ def calculate_capacitance(dataset, current_values = 1, ohmic_drop = True, savere
         outname = kwargs.get('outname')
         if not outname:
             raise Exception('Please specify an output filename for the Excel file.')
-        outresults.to_excel(os.path.join(home_folder, "Desktop", f'{outname}.xlsx'), index=False)
+        outresults.to_excel(os.path.join(HOME_FOLDER, "Desktop", f'{outname}.xlsx'), index=False)
 
     return outresults
 
@@ -321,7 +292,7 @@ def plot_gcd(dataset, ylimits = [0, 0.85], colors = None, labels = None, saveplo
 
     if saveplot == 'y':
         try:
-            plt.savefig(os.path.join(home_folder , "Desktop" ,f"{kwargs['outname']}.pdf"))  # default saves to the desktop
+            plt.savefig(os.path.join(HOME_FOLDER , "Desktop" ,f"{kwargs['outname']}.pdf"))  # default saves to the desktop
         except KeyError:   
             raise Exception('Please specify a figure output filename')
 
@@ -340,6 +311,6 @@ def plot_cycling_test(metrics_dataframe, saveplot = 'n', **kwargs):
 
     if saveplot == 'y':
         try:
-            plt.savefig(os.path.join(home_folder, "Desktop" ,f"{kwargs['outname']}.pdf"))  # default saves to the desktop
+            plt.savefig(HOME_FOLDER / "Desktop" / f"{kwargs['outname']}.pdf")  # default saves to the desktop
         except KeyError:   
             raise Exception('Please specify a figure output filename')
