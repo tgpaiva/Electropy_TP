@@ -20,6 +20,8 @@ plt.rc('ytick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+plt.rcParams['svg.fonttype'] = 'none' # none ; path ; svgfont (only for Chrome/Opera)
+
 
 def import_data(path):
     """
@@ -168,7 +170,7 @@ def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', label
     # Save plot
 
     if save_plot == 'y':
-        plt.savefig(os.path.join(home_folder, 'Desktop', outname + '.pdf' ))
+        plt.savefig(os.path.join(home_folder, 'Desktop', f'{outname}.pdf' ))
 
     return
 
@@ -217,7 +219,7 @@ def plot_cv(data, saveplot = 'n',  normalize = False, outname = 'CV', active_mas
     # Save plot
 
     if saveplot == 'y':
-        plt.savefig(os.path.join(home_folder, 'Desktop', outname + '.pdf' ))
+        plt.savefig(os.path.join(home_folder, 'Desktop', f'{outname}.pdf'))
     
     return CV_3rdcurve
 

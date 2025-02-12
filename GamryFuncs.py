@@ -19,6 +19,8 @@ plt.rc('ytick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+plt.rcParams['svg.fonttype'] = 'none' # none ; path ; svgfont (only for Chrome/Opera)
+
 # Class definition
 
 class GamryGCD:
@@ -216,7 +218,7 @@ def plot_cv(DatatoPlot, normalize = False, active_mass = 0.100E-3, colors = None
 
     if saveplot == 'y':
         try:
-            plt.savefig(home_folder + '/Desktop/' + kwargs['outname'] + '.pdf')  # default saves to the desktop
+            plt.savefig(os.path.join(home_folder , '/Desktop/' ,f"{kwargs['outname']}.pdf"))  # default saves to the desktop
         except KeyError:   
             raise Exception('Please specify a figure output filename')
 
@@ -281,7 +283,7 @@ def calculate_capacitance(dataset, current_values = 1, ohmic_drop = True, savere
         outname = kwargs.get('outname')
         if not outname:
             raise Exception('Please specify an output filename for the Excel file.')
-        outresults.to_excel(os.path.join(home_folder, 'Desktop', f'{outname}.xlsx'), index=False)
+        outresults.to_excel(os.path.join(home_folder, "Desktop", f'{outname}.xlsx'), index=False)
 
     return outresults
 
@@ -319,8 +321,25 @@ def plot_gcd(dataset, ylimits = [0, 0.85], colors = None, labels = None, saveplo
 
     if saveplot == 'y':
         try:
-            plt.savefig(home_folder + '/Desktop/' + kwargs['outname'] + '.pdf')  # default saves to the desktop
+            plt.savefig(os.path.join(home_folder , "Desktop" ,f"{kwargs['outname']}.pdf"))  # default saves to the desktop
         except KeyError:   
             raise Exception('Please specify a figure output filename')
 
     return
+
+
+def plot_cycling_test(metrics_dataframe, saveplot = 'n', **kwargs):
+    """ 
+    Plots the result of a GCD cycling test experiment
+     """
+    fig, ax = plt.subplots()
+
+    ax.plot(metrics_dataframe['Q discharge (F/g)'], marker = 'o', color = 'black', markersize = 5, linestyle = '')
+    ax.set_xlabel('Cycles (n)', weight='bold')
+    ax.set_ylabel('Capacity (F/g)', weight='bold')
+
+    if saveplot == 'y':
+        try:
+            plt.savefig(os.path.join(home_folder, "Desktop" ,f"{kwargs['outname']}.pdf"))  # default saves to the desktop
+        except KeyError:   
+            raise Exception('Please specify a figure output filename')
