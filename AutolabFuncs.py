@@ -4,10 +4,11 @@ import numpy as np
 import os 
 import re 
 from natsort import natsorted
-from scipy.integrate import simpson, trapz
+from scipy.integrate import simpson, trapezoid
 from pathlib import Path
 
 HOME_FOLDER = Path.home()
+cwd = Path.cwd()
 
 SMALL_SIZE = 10
 MEDIUM_SIZE = 14
@@ -244,7 +245,7 @@ def integrate_cv(data, model = 'simpson'):
         charge = simpson(current, x = potential) 
 
     elif model == 'trapz':
-        charge = trapz(current, x = potential)
+        charge = trapezoid(current, x = potential)
 
     elif model == 'paiva':
         # Calculate the differences in potential (ΔV)
