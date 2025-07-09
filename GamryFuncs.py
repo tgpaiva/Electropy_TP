@@ -196,7 +196,7 @@ def plot_cv(DatatoPlot, normalize = False, active_mass = 0.100E-3, colors = None
 
     if saveplot == 'y':
         try:
-            plt.savefig(HOME_FOLDER / 'Desktop' / f"{kwargs['outname']}.pdf")  # default saves to the desktop
+            plt.savefig(HOME_FOLDER / f"{kwargs['outname']}.pdf")  # default saves to the desktop
         except KeyError:   
             raise Exception('Please specify a figure output filename')
 
@@ -390,7 +390,7 @@ def plot_lsv(lsv_data, ax=None ,pH = 14, normalize_data = 'y' ,save_plot = 'n', 
     if save_plot == 'y':
 
         try:
-            plt.savefig(HOME_FOLDER / 'Desktop' / f"{kwargs['outname']}.pdf")  # default saves to the desktop
+            plt.savefig(HOME_FOLDER / f"{kwargs['outname']}.pdf")  # default saves to the desktop
 
         except KeyError:   
             raise Exception('Please specify a figure output filename')
@@ -444,7 +444,7 @@ def plot_tafel(lsv_data, reaction_kind = 'OER', pH = 14, normalize_data = 'y' ,s
     if save_plot == 'y':
 
         try:
-            plt.savefig(HOME_FOLDER / 'Desktop' / f"{kwargs['outname']}.pdf")  # default saves to the desktop
+            plt.savefig(HOME_FOLDER / f"{kwargs['outname']}.pdf")  # default saves to the desktop
 
         except KeyError:   
             raise Exception('Please specify a figure output filename')

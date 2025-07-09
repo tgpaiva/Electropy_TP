@@ -3,14 +3,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os 
-
+from pathlib import Path
 from scipy.optimize import curve_fit
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
 from scipy.signal import savgol_filter, find_peaks
 
-
-pwd = os.getcwd()
+HOME_FOLDER = Path.home()
 
 SMALL_SIZE = 10
 MEDIUM_SIZE = 14
@@ -25,6 +24,9 @@ plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 def import_raman(file_name):
+    """
+    import function to read Horiba exported txt Raman data
+    """
     data = np.loadtxt(file_name, delimiter = '\t')
     wave_number = data[:,0]
     counts = data[:,1]
@@ -127,7 +129,7 @@ def main(*argv):
         corrected_signal = counts - baseline_fit
         base_corr_smothed = apply_Savitzky_Golay(corrected_signal)
         plot_raman(wave_number, base_corr_smothed)
-        plt.savefig('/Users/tiagopaiva/' + file_name + '.svg')
+        plt.savefig(HOME_FOLDER / f"{kwargs['file_name']}.svg")
 
 
 if __name__ == "__main__":

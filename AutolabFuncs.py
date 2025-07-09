@@ -135,7 +135,7 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
     # Save results
 
     if save_results == 'y':
-        pd.DataFrame(results).to_excel(HOME_FOLDER / 'Desktop' / f'{outname}.xlsx', index=False)
+        pd.DataFrame(results).to_excel(HOME_FOLDER / f'{outname}.xlsx', index=False)
 
     return
 
@@ -174,7 +174,7 @@ def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', label
     # Save plot
 
     if save_plot == 'y':
-        plt.savefig(HOME_FOLDER / 'Desktop' / f'{outname}.pdf' )
+        plt.savefig(HOME_FOLDER / f'{outname}.pdf' )
 
     return
 
@@ -223,7 +223,7 @@ def plot_cv(data, saveplot = 'n',  normalize = False, outname = 'CV', active_mas
     # Save plot
 
     if saveplot == 'y':
-        plt.savefig(HOME_FOLDER / 'Desktop' / f'{outname}.pdf')
+        plt.savefig(HOME_FOLDER / f'{outname}.pdf')
     
     return
 
@@ -333,14 +333,6 @@ def plot_multiple_cv(pathtofiles, CVscan_rate = '50 mV/s'):
         ax.legend(frameon = False)
 
     return 
-
-
-# def PlotMultipleGCD(pathtofiles, GCD_current = '0.5'):
-#     """
-#     Plot 
-#     """
-#     return 
-
 
 
 
