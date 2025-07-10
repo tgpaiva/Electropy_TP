@@ -1,15 +1,14 @@
-import pandas as pd
+import os 
+import re
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
-import os 
-import re 
+import pandas as pd
 from natsort import natsorted
 from scipy.integrate import simpson, trapezoid
-from pathlib import Path
 
 HOME_FOLDER = Path.home()
 cwd = Path.cwd()
-
 SMALL_SIZE = 10
 MEDIUM_SIZE = 14
 BIGGER_SIZE = 20
@@ -21,7 +20,6 @@ plt.rc('xtick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
-
 plt.rcParams['svg.fonttype'] = 'none' # none ; path ; svgfont (only for Chrome/Opera)
 
 
@@ -83,11 +81,11 @@ def _order_cv_data(data):
     Return dictionary with CV data arranged in a Python Dic with scan rates as the key
     """
     indeces  = [data[n].loc[(data[n] == 0).any(axis = 1)].index[-2]  for n in range(len(data))   ]
-    CV_3rdcurve = [data[n].iloc[indeces[n]:]  for n in range(len(data))]
+    cv_3rd_curve = [data[n].iloc[indeces[n]:]  for n in range(len(data))]
     labels = ['5 mV/s' , '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s' , '200 mV/s' ]
-    dataCV = dict(zip(labels, CV_3rdcurve))
+    cv_data = dict(zip(labels, cv_3rd_curve))
 
-    return dataCV
+    return cv_data
 
 def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, current_values = None, outname = 'GCD',):
     """ 
@@ -101,7 +99,7 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
 
    # Calculations
 
-    if current_values == None:
+    if current_values is None:
         current_values = [0.5, 1, 2, 4, 8, 10]
 
     results = []
@@ -110,11 +108,11 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
 
         charge_time = frame['Time (s)'][frame['WE(1).Potential (V)'].idxmax()]
 
-        if ohmic_drop == False:
+        if ohmic_drop is False:
             discharge_time = frame['Time (s)'].iloc[-1] - charge_time
             max_potential = frame['WE(1).Potential (V)'].max()
 
-        elif ohmic_drop == True:
+        elif ohmic_drop is True:
             discharge_time = frame['Time (s)'].iloc[-1] - frame['Time (s)'][int(frame['WE(1).Potential (V)'].idxmax()) + 1]
             max_potential = frame['WE(1).Potential (V)'][int(frame['WE(1).Potential (V)'].idxmax()) + 1]
 
@@ -132,13 +130,8 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
             'Energy density discharge': (frame['WE(1).Potential (V)'].max() ** 2 * q_discharge) / 2,
         })
 
-    # Save results
-
     if save_results == 'y':
         pd.DataFrame(results).to_excel(HOME_FOLDER / f'{outname}.xlsx', index=False)
-
-    return
-
 
 def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', labels = None):
     """
@@ -148,18 +141,13 @@ def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', label
 
     df = [pd.concat([dataset[i], dataset[18 + i]]) for i in range(2, 18, 3)]
     df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0], frame['WE(1).Potential (V)']], axis=1) for frame in df]
-
-    # Plot settings
-
     fig, ax = plt.subplots()
     colors = ['#0a1170', '#cc9456', '#7a2233', '#be3b49', '#6c727a', '#6b9fe3']
     
-    if labels == None:
+    if labels is None:
         labels = ['5 mV/s', '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s', '200 mV/s', '300 mV/s', '400 mV/s', '500 mV/s']
 
-    # Plot data
-
-    if ylim == None:
+    if ylim is None:
         ylim = [-0.1, 0.9]
 
     for frame, color in zip(df, colors):
@@ -170,8 +158,6 @@ def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', label
     ax.legend(labels, frameon=False,  markerscale=6)
     ax.set_ylim(ylim)
     fig.tight_layout()
-
-    # Save plot
 
     if save_plot == 'y':
         plt.savefig(HOME_FOLDER / f'{outname}.pdf' )
@@ -184,43 +170,33 @@ def plot_cv(data, saveplot = 'n',  normalize = False, outname = 'CV', active_mas
     Plot all CV curves at different scan rates for the same sample 
     """
     number_points = int(len(data[0])/3)
-    
-    CV_3rdcurve = [data[n][-number_points::] for n in range(len(data))]
+    cv_3rd_curve = [data[n][-number_points::] for n in range(len(data))]
 
-    if normalize == True:
+    if normalize is True:
 
-        for n in range(len(CV_3rdcurve)):
-
-            CV_3rdcurve[n]['WE(1).Current (A)'] = CV_3rdcurve[n]['WE(1).Current (A)'] / active_mass
-
-    # Prepare Plot 
+        for n in range(len(cv_3rd_curve)):
+            cv_3rd_curve[n]['WE(1).Current (A)'] = cv_3rd_curve[n]['WE(1).Current (A)'] / active_mass
 
     fig, ax = plt.subplots()
 
-    if colors == None:
+    if colors is None:
         colors = ['#0a1170','#cc9456','#7a2233','#be3b49', '#6c727a', '#6b9fe3']
     # colors = ["#1b4f72", "#b45f06", "#1d8348", "#922b21", "#5b2c6f"]
 
-    if labels == None:
+    if labels is None:
         labels = ['5 mV/s' , '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s' , '200 mV/s' ]
 
-    # Actually plot
-
-    for index, color in zip(range(len(CV_3rdcurve)), colors):
-        ax.plot(CV_3rdcurve[index]['Potential applied (V)'], CV_3rdcurve[index]['WE(1).Current (A)'] , color = color, linewidth = 1.8, marker = None)
-
-    # Axis cosmetics
+    for index, color in zip(range(len(cv_3rd_curve)), colors):
+        ax.plot(cv_3rd_curve[index]['Potential applied (V)'], cv_3rd_curve[index]['WE(1).Current (A)'] , color = color, linewidth = 1.8, marker = None)
 
     ax.set_xlabel('Potential (V)', weight = 'bold')
     ax.set_ylabel('Current (A)', weight = 'bold')
 
-    if normalize == True:
+    if normalize is True:
          ax.set_ylabel('Current Density (A/g)', weight = 'bold')
 
     ax.legend(labels, frameon = False, loc = 'lower right', ncols = 2 )
     fig.tight_layout()
-
-    # Save plot
 
     if saveplot == 'y':
         plt.savefig(HOME_FOLDER / f'{outname}.pdf')
