@@ -1,0 +1,1 @@
+Python module for analysing electrochemistry data currently works with Gamry's "*.DTA" files and Metrohm's Autolab exported files

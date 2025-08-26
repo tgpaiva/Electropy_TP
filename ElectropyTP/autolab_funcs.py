@@ -146,39 +146,51 @@ def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', label
     if save_plot == 'y':
         plt.savefig(HOME_FOLDER / f'{outname}.pdf' )
 
-def plot_cv(data, saveplot = 'n',  normalize = False, outname = 'CV', active_mass = None, colors = None ,labels = None):
+def plot_cv(data, saveplot='n', normalize=False, outname='CV',
+            active_mass=None, colors=None, labels=None):
     """
-    Plot all CV curves at different scan rates for the same sample 
+    Plot all CV curves at different scan rates for the same sample.
+
+    Parameters:
+        data (list of DataFrames): Each element should be a CV dataset.
+        saveplot (str): 'y' to save the plot as a PDF, anything else skips saving.
+        normalize (bool): If True, normalize current by active_mass.
+        outname (str): Output filename (no extension).
+        active_mass (float): Mass used for current normalization.
+        colors (list): List of hex colors for plotting.
+        labels (list): Labels for the legend.
     """
-    number_points = int(len(data[0])/3)
-    cv_3rd_curve = [data[n][-number_points::] for n in range(len(data))]
+    number_points = int(len(data[0]) / 3)     # Use the last third of each dataset (usually the 3rd cycle)
+    cv_3rd_curve = [df[-number_points:].copy() for df in data]
 
-    if normalize is True:
-        for n, curve in enumerate(cv_3rd_curve):
-            curve[n]['WE(1).Current (A)'] = curve[n]['WE(1).Current (A)'] / active_mass
+    if normalize:     # Normalize current if requested
+        if active_mass is None:
+            raise ValueError("active_mass must be provided when normalize=True.")
+        for entry in cv_3rd_curve:
+            entry['WE(1).Current (A)'] /= active_mass
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots()     # Plot setup
+
     if colors is None:
-        colors = ['#0a1170','#cc9456','#7a2233','#be3b49', '#6c727a', '#6b9fe3']
-    # colors = ["#1b4f72", "#b45f06", "#1d8348", "#922b21", "#5b2c6f"]
+        colors = ['#0a1170', '#cc9456', '#7a2233', '#be3b49', '#6c727a', '#6b9fe3']
 
     if labels is None:
-        labels = ['5 mV/s' , '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s' , '200 mV/s' ]
+        labels = ['5 mV/s', '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s', '200 mV/s']
 
-    for index, color in zip(range(len(cv_3rd_curve)), colors):
-        ax.plot(cv_3rd_curve[index]['Potential applied (V)'], cv_3rd_curve[index]['WE(1).Current (A)'] , 
-                color = color, linewidth = 1.8, marker = None)
+    for index, (curve, color) in enumerate(zip(cv_3rd_curve, colors)):
+        ax.plot(curve['Potential applied (V)'],
+                curve['WE(1).Current (A)'],
+                color=color, linewidth=1.8, marker=None,
+                label=labels[index] if index < len(labels) else f'Curve {index + 1}')
 
-    ax.set_xlabel('Potential (V)', weight = 'bold')
-    ax.set_ylabel('Current (A)', weight = 'bold')
+    ax.set_xlabel('Potential (V)', weight='bold')     # Axis labels
+    ylabel = 'Current Density (A/g)' if normalize else 'Current (A)'
+    ax.set_ylabel(ylabel, weight='bold')
 
-    if normalize is True:
-        ax.set_ylabel('Current Density (A/g)', weight = 'bold')
-
-    ax.legend(labels, frameon = False, loc = 'lower right', ncols = 2 )
+    ax.legend(frameon=False, loc='lower right', ncols=2)
     fig.tight_layout()
 
-    if saveplot == 'y':
+    if saveplot.lower() == 'y':
         plt.savefig(HOME_FOLDER / f'{outname}.pdf')
 
 def integrate_cv(data, model = 'simpson'):

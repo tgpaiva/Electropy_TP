@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+setup.py
+ElectropyTP/__init__.py
+ElectropyTP/autolab_funcs.py
+ElectropyTP/gamry_funcs.py
+ElectropyTP/setup.py
+ElectropyTP.egg-info/PKG-INFO
+ElectropyTP.egg-info/SOURCES.txt
+ElectropyTP.egg-info/dependency_links.txt
+ElectropyTP.egg-info/requires.txt
+ElectropyTP.egg-info/top_level.txt

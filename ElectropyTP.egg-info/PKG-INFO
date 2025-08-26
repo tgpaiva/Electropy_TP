@@ -1,0 +1,23 @@
+Metadata-Version: 2.4
+Name: ElectropyTP
+Version: 0.2.0
+Summary: A python package for electrochemistry data analysis
+Home-page: https://github.com/tgpaiva/Electropy_TP
+Author: Tiago Paiva
+Author-email: tgspaiva@gmail.com.com
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: pandas
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+Python module for analysing electrochemistry data currently works with Gamry's "*.DTA" files and Metrohm's Autolab exported files

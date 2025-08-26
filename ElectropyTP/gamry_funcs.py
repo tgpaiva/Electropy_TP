@@ -14,7 +14,6 @@ HOME_FOLDER = Path.home()
 SMALL_SIZE = 10
 MEDIUM_SIZE = 14
 BIGGER_SIZE = 20
-
 plt.rc("font", size=MEDIUM_SIZE)  # controls default text sizes
 plt.rc("axes", titlesize=MEDIUM_SIZE)  # fontsize of the axes title
 plt.rc("axes", labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
@@ -30,21 +29,21 @@ class GamryGCD:
     defines class GamryGCD to hold gamry GCD data
     """
 
-    def __init__(self, index, data, current):
+    def __init__(self, index, data, current, file_number = None):
         self.index = index
         self.data = data
         self.current = current
-
+        self.file_number = file_number
 
 class GamryCV:
     """
     defines class GamryCV to hold gamry CV data
     """
-
-    def __init__(self, data, scan_rate):
+    def __init__(self, data, scan_rate, file_number=None, filename=None):
         self.data = data
         self.scan_rate = scan_rate
-
+        self.file_number = file_number
+        self.filename = filename
 
 class GamryLSV:
     """
@@ -54,15 +53,12 @@ class GamryLSV:
     def __init__(self, data):
         self.data = data
 
-
 def _read_file(pathtofile):
     """
-    Text file read generator
+    Reads and returns all lines from a file as a list.
     """
     with open(pathtofile, encoding="utf-8") as file:
-        while lines := file.readline():
-            yield lines
-
+        return file.readlines()
 
 def _search_gcd_curve(textfile):
     """
@@ -71,7 +67,6 @@ def _search_gcd_curve(textfile):
     for idx, line in enumerate(textfile):
         if re.findall(r"Curve", line, re.IGNORECASE):
             return idx
-
 
 def _search_cv(textfile):
     """
@@ -90,78 +85,68 @@ def _current_value(textfile):
     """
     Search beginning of a data set
     """
-    for idx, line in enumerate(textfile):
+    for line in (textfile):
         if re.search(r"ISTEP1", line, re.IGNORECASE):
             return line.split("	")[-2]
-
 
 def _cv_scan_rate(textfile):
     """
     Search beginning of a data set
     """
-    for idx, line in enumerate(textfile):
+    for line in textfile:
         if re.search(r"SCANRATE", line, re.IGNORECASE):
             return line.split("	")[-2]
 
 def import_gamry(pathtofiles):
     """
-    Gets list of filesnames with *.DTA extension
+    Gets list of *.DTA files and returns list of (filename, file_lines) tuples.
     """
-    files = os.listdir(pathtofiles)
-    files = natsorted(files)
-    files_txt = [i for i in files if i.endswith(".DTA")]
-    text_file = [_read_file(pathtofiles / txtfile) for txtfile in files_txt]
-    return text_file
+    pathtofiles = Path(pathtofiles)
+    files = natsorted([f for f in os.listdir(pathtofiles) if f.endswith(".DTA")])
+    return [(fname, _read_file(pathtofiles / fname)) for fname in files]
 
 def parse_cv(filename):
     """
     Parse Gamry CV from DTA files.
     """
     cv_text_files = [list(datafile) for datafile in filename]
-    exp_start = [_search_cv(txtfile) for txtfile in cv_text_files]
-    scan_rate = [_cv_scan_rate(txtfile) for txtfile in cv_text_files]
+
+    exp_start = [_search_cv(txtfile[:][1]) for txtfile in cv_text_files]
+    scan_rate = [_cv_scan_rate(txtfile[:][1]) for txtfile in cv_text_files]
+
+
     sorted_data_list = []
 
     for n, (start ,data) in enumerate(zip(exp_start, cv_text_files)):
         sorted_data = [
             [line.split("\t")[3], line.split("\t")[4], line.split("\t")[2]]
-            for line in data[start[2] + 3 : start[2] + start[2 + 1] - start[2]]
+            for line in data[1][start[2] + 3 : start[2] + start[2 + 1] - start[2]]
             ]
         sorted_data_list.append(GamryCV(sorted_data, scan_rate[n]))
 
-    # for n in range(len(exp_start)):
-
-    #     start = exp_start[n]
-    #     data = cv_text_files[n]
-
-    #     sorted_data = [
-    #         [line.split("\t")[3], line.split("\t")[4], line.split("\t")[2]]
-    #         for line in data[start[2] + 3 : start[2] + start[2 + 1] - start[2]]
-    #     ]
-
-        # sorted_data_list.append(GamryCV(sorted_data, scan_rate[n]))
-
     return sorted_data_list
 
-def parse_gcd(filename: list, start: int = 2, step: int = 3) -> list:
+def parse_gcd(file_data: list[tuple[str, list[str]]], start: int = 2, step: int = 3) -> list:
     """
-    Parse Gamry CV data from a DTA file.
+    Parse Gamry GCD data from a list of (filename, file_lines).
     """
-    # Extract target text files based on start and step
-    cgd_text_files = [list(filename[i]) for i in range(start, len(filename), step)]
-    # Parse experiment start lines and current values
-    exp_starts = [_search_gcd_curve(txt) for txt in cgd_text_files]
-    currents = [_current_value(txt) for txt in cgd_text_files]
-
+    selected_files = file_data[start::step]
     parsed_data = []
-    for i, exp_start in enumerate(exp_starts):
-        if exp_start is None:
-            continue  # Skip this entry if exp_start is invalid
 
-        data_lines = cgd_text_files[i][exp_start + 3 :]
-        # Extract relevant columns from each data line
-        sorted_data = [line.split("\t")[2:4] for line in data_lines]
-        parsed_data.append(GamryGCD(i, sorted_data, currents[i]))
+    for i, (filename, lines) in enumerate(selected_files):
+        exp_start = _search_gcd_curve(lines)
+        if exp_start is None:
+            print(f"⚠️ Skipping file '{filename}' — no 'Curve' found.")
+            continue
+
+        current = _current_value(lines)
+        data_lines = lines[exp_start + 3:]
+        sorted_data = [line.split("\t")[2:4] for line in data_lines if "\t" in line]
+
+        match = re.search(r"#(\d+)", filename)
+        file_number = int(match.group(1)) if match else None
+
+        parsed_data.append(GamryGCD(i, sorted_data, current, file_number))
 
     return parsed_data
 
@@ -221,13 +206,12 @@ def plot_cv(
     if saveplot == "y":
         try:
             plt.savefig(
-                HOME_FOLDER / f"{kwargs['outname']}.pdf"
-            )  # default saves to the desktop
+                HOME_FOLDER / f"{kwargs['outname']}.svg"
+            )
         except KeyError:
             raise Exception("Please specify a figure output filename")
 
     return
-
 
 def calculate_capacitance(dataset, current_values=1, saveresults="n", **kwargs):
     """
@@ -279,7 +263,6 @@ def calculate_capacitance(dataset, current_values=1, saveresults="n", **kwargs):
 
     return outresults
 
-
 def plot_gcd(dataset, ylimits=None, colors=None, labels=None, saveplot="n", **kwargs):
     """
     Plot all GCD curves at different current values for same value
@@ -318,62 +301,53 @@ def plot_gcd(dataset, ylimits=None, colors=None, labels=None, saveplot="n", **kw
     if saveplot == "y":
         try:
             plt.savefig(
-                os.path.join(HOME_FOLDER, f"{kwargs['outname']}.pdf")
+                os.path.join(HOME_FOLDER, f"{kwargs['outname']}.svg")
             )  # default saves to the desktop
         except KeyError:
             raise Exception("Please specify a figure output filename")
 
-    return
-
-
 def plot_cycling_test(metrics_dataframe, saveplot="n", **kwargs):
     """
-    Plots the result of a GCD cycling test experiment
+    Plots the result of a GCD cycling test experiment.
     """
     fig, ax = plt.subplots()
     ax.plot(
-        metrics_dataframe["Q discharge (F/g)"],
+        metrics_dataframe["file_number"],  # ✅ x-axis: file numbers
+        metrics_dataframe["Q discharge (F/g)"],  # ✅ y-axis: capacity
         marker="o",
         color="black",
         markersize=5,
         linestyle="",
     )
+
     ax.set_xlabel("Cycles (n)", weight="bold")
     ax.set_ylabel("Capacity (F/g)", weight="bold")
 
     if saveplot == "y":
         try:
             plt.savefig(
-                HOME_FOLDER / f"{kwargs['outname']}.pdf"
-            )  # default saves to the desktop
+                HOME_FOLDER / f"{kwargs['outname']}.svg"
+            )
         except KeyError:
             raise Exception("Please specify a figure output filename")
-
 
 def parse_lsv(filename):
     """
     function to parse the data on LSV Gamry's DTA files
     """
     cv_text_files = [list(datafile) for datafile in filename]
-    exp_start = [_search_cv(txtfile) for txtfile in cv_text_files]
+    exp_start = [_search_cv(txtfile[:][1]) for txtfile in cv_text_files]
     sorted_data_list = []
 
     for start, data in zip(exp_start, cv_text_files):
-        relevant_lines = data[start[0] + 3 :]
+        relevant_lines = data[1][start[0] + 3 :]
         sorted_data = [
             [line.split("\t")[3], line.split("\t")[4], line.split("\t")[2]]
             for line in relevant_lines
         ]
         sorted_data_list.append(GamryLSV(sorted_data))
 
-    # for n in range(len(exp_start)):
-    #     start = exp_start[n]
-    #     data = cv_text_files[n]
-    #     sorted_data = [[line.split('\t')[3], line.split('\t')[4], line.split('\t')[2]] for line in data[start[0]+3::]]
-    #     sorted_data_list.append(GamryLSV(sorted_data))
-
     return sorted_data_list
-
 
 def plot_lsv(
     lsv_data, ax=None, ph=14, normalize_data="y", save_plot="n", color_="black"
@@ -406,7 +380,7 @@ def plot_lsv(
     if save_plot == "y":
         try:
             plt.savefig(
-                HOME_FOLDER / f"{kwargs['outname']}.pdf"
+                HOME_FOLDER / f"{kwargs['outname']}.svg"
             )  # default saves to the desktop
         except KeyError:
             raise Exception("Please specify a figure output filename")
@@ -418,13 +392,12 @@ def plot_lsv(
 
     return overpotential
 
-
 def plot_tafel(lsv_data, reaction_kind="OER", ph=14, save_plot="n"):
     """
     plots LSV data
     """
     fifth_lsv_cycle = pd.DataFrame(
-    lsv_data[4].data, columns=["Potential", "Current", "Time"], 
+    lsv_data[4].data, columns=["Potential", "Current", "Time"],
     dtype=float)
 
     potential = fifth_lsv_cycle["Potential"] + 0.058 * ph + 0.204
@@ -445,13 +418,12 @@ def plot_tafel(lsv_data, reaction_kind="OER", ph=14, save_plot="n"):
     if save_plot == "y":
         try:
             plt.savefig(
-                HOME_FOLDER / f"{kwargs['outname']}.pdf"
+                HOME_FOLDER / f"{kwargs['outname']}.svg"
             )  # default saves to the desktop
         except KeyError:
             raise Exception("Please specify a figure output filename")
 
     return
-
 
 def calculate_tafel_slope(lsv_data, ph=14, reaction_kind="OER"):
     """
@@ -540,5 +512,3 @@ def calculate_tafel_slope(lsv_data, ph=14, reaction_kind="OER"):
     axes[1].plot(best_x, best_y_pred, color="red", linewidth=2, label="Best Fit Line")
     axes[1].set_xlabel("Log J ($\\mathbf{mA~cm^{-2}})$", weight="bold")
     axes[1].set_ylabel("Potential vs RHE (V)", weight="bold")
-
-    return
