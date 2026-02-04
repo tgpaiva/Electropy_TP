@@ -1,4 +1,4 @@
-import os 
+import os
 import re
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -78,18 +78,86 @@ def _order_cv_data(data):
 
     return cv_data
 
-def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, current_values = None, outname = 'GCD',):
+def plot_gcd_curve(dataset, ylim=None, save_plot='n', outname='GCD', labels=None):
+    """
+    Plot GCD curves where each file contains both charge and discharge curves.
+    The file is split whenever a repeated header 'Time (s)' appears.
+    """
+    df_list = []
+
+    for frame in dataset:
+
+        # Split file into charge/discharge by detecting the header repetition
+        header_rows = frame.index[frame['Time (s)'] == 'Time (s)'].tolist()
+
+        if header_rows:
+            split = header_rows[0]
+            charge = frame.iloc[:split].astype(float)
+            discharge = frame.iloc[split+1:].astype(float)
+
+            # Combine charge + discharge to one continuous cycle
+            combined = pd.concat([charge, discharge])
+
+        else:
+            # If no internal header exists, use frame directly
+            combined = frame.astype(float)
+
+        # Align time so cycle starts at zero
+        combined['Time (s)'] = combined['Time (s)'] - combined['Time (s)'].iloc[0]
+
+        df_list.append(combined)
+
+    df_list = df_list[2::3]
+    # ------------------- Plotting -----------------------
+    fig, ax = plt.subplots()
+    colors = ['#0a1170', '#cc9456', '#7a2233', '#be3b49', '#6c727a', '#6b9fe3']
+
+    if labels is None:
+        labels = [f'File {i+1}' for i in range(len(df_list))]
+
+    if ylim is None:
+        ylim = [-0.1, 1.0]
+
+    for frame, color, label in zip(df_list, colors, labels):
+        ax.plot(
+            frame['Time (s)'],
+            frame['WE(1).Potential (V)'],
+            color=color,
+            linestyle='',
+            marker='o',
+            markersize=1,
+            label=label
+        )
+
+    ax.set_xlabel("Time (s)", weight='bold')
+    ax.set_ylabel("Potential (V)", weight='bold')
+    ax.legend(frameon=False, markerscale=6)
+    ax.set_ylim(ylim)
+    fig.tight_layout()
+
+    if save_plot.lower() == 'y':
+        plt.savefig(f"{outname}.png", dpi=300)
+
+    plt.show()
+
+def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True,
+                          current_values = None, outname = 'GCD',):
     """ 
     Calculate performance metrics from GCD curves 
     Current_values if none are specified the default is 0.5, 1, 2, 4, 8, 10 A/g
     """
-    df = [pd.concat([dataset[i], dataset[18 + i]], ignore_index = True) for i in range(2, 18, 3)]
-    df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0], frame['WE(1).Potential (V)']], axis=1) for frame in df]
+    for frame in dataset:
+        frame['Time (s)'] = pd.to_numeric(frame['Time (s)'], errors='coerce')
+        frame['WE(1).Potential (V)'] = pd.to_numeric(frame['WE(1).Potential (V)'], errors='coerce')
+
+    df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0],
+                     frame['WE(1).Potential (V)']], axis=1) for frame in dataset]
 
     if current_values is None:
         current_values = [0.5, 1, 2, 4, 8, 10]
 
     results = []
+
     for frame, current in zip(df, current_values):
         charge_time = frame['Time (s)'][frame['WE(1).Potential (V)'].idxmax()]
 
@@ -98,8 +166,10 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
             max_potential = frame['WE(1).Potential (V)'].max()
 
         elif ohmic_drop is True:
-            discharge_time = frame['Time (s)'].iloc[-1] - frame['Time (s)'][int(frame['WE(1).Potential (V)'].idxmax()) + 1]
-            max_potential = frame['WE(1).Potential (V)'][int(frame['WE(1).Potential (V)'].idxmax()) + 1]
+            discharge_time = frame['Time (s)'].iloc[-1] - frame['Time (s)'][
+                int(frame['WE(1).Potential (V)'].idxmax()) + 1]
+            max_potential = frame['WE(1).Potential (V)'][
+                int(frame['WE(1).Potential (V)'].idxmax()) + 1]
 
         q_charge = charge_time * current / max_potential
         q_discharge = discharge_time * current / max_potential
@@ -117,34 +187,77 @@ def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True, curre
     if save_results == 'y':
         pd.DataFrame(results).to_excel(HOME_FOLDER / f'{outname}.xlsx', index=False)
 
-def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', labels = None):
-    """
-    Plot GCD curves at different current values and optionally save the plot and results.
-    """
-    # Prepare datasets
+# def calculate_capacitance(dataset, save_results = 'n', ohmic_drop  = True,
+#                           current_values = None, outname = 'GCD',):
+#     """ 
+#     Calculate performance metrics from GCD curves 
+#     Current_values if none are specified the default is 0.5, 1, 2, 4, 8, 10 A/g
+#     """
+#     df = [pd.concat([dataset[i], dataset[18 + i]], ignore_index = True) for i in range(2, 18, 3)]
+#     df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0],
+#                      frame['WE(1).Potential (V)']], axis=1) for frame in df]
 
-    df = [pd.concat([dataset[i], dataset[18 + i]]) for i in range(2, 18, 3)]
-    df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0], frame['WE(1).Potential (V)']], axis=1) for frame in df]
-    fig, ax = plt.subplots()
-    colors = ['#0a1170', '#cc9456', '#7a2233', '#be3b49', '#6c727a', '#6b9fe3']
-    
-    if labels is None:
-        labels = ['5 mV/s', '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s', '200 mV/s', '300 mV/s', '400 mV/s', '500 mV/s']
+#     if current_values is None:
+#         current_values = [0.5, 1, 2, 4, 8, 10]
 
-    if ylim is None:
-        ylim = [-0.1, 0.9]
+#     results = []
+#     for frame, current in zip(df, current_values):
+#         charge_time = frame['Time (s)'][frame['WE(1).Potential (V)'].idxmax()]
 
-    for frame, color in zip(df, colors):
-        ax.plot(frame['Time (s)'], frame['WE(1).Potential (V)'], color=color, linestyle = '', marker = 'o', markersize = 1)
+#         if ohmic_drop is False:
+#             discharge_time = frame['Time (s)'].iloc[-1] - charge_time
+#             max_potential = frame['WE(1).Potential (V)'].max()
 
-    ax.set_xlabel('Time (s)', weight = 'bold')
-    ax.set_ylabel('Potential (V) vs SCE', weight = 'bold')
-    ax.legend(labels, frameon=False,  markerscale=6)
-    ax.set_ylim(ylim)
-    fig.tight_layout()
+#         elif ohmic_drop is True:
+#             discharge_time = frame['Time (s)'].iloc[-1] - frame['Time (s)'][
+#                 int(frame['WE(1).Potential (V)'].idxmax()) + 1]
+#             max_potential = frame['WE(1).Potential (V)'][
+#                 int(frame['WE(1).Potential (V)'].idxmax()) + 1]
 
-    if save_plot == 'y':
-        plt.savefig(HOME_FOLDER / f'{outname}.pdf' )
+#         q_charge = charge_time * current / max_potential
+#         q_discharge = discharge_time * current / max_potential
+#         results.append({
+#             'Current': current,
+#             'Q charge (F/g)': q_charge,
+#             'Q discharge (F/g)': q_discharge,
+#             'Coulombic efficiency (%)': (discharge_time / charge_time) * 100,
+#             'Charge Time (s)': charge_time,
+#             'Discharge Time (s)': discharge_time,
+#             'Energy density charge': (frame['WE(1).Potential (V)'].max() ** 2 * q_charge) / 2,
+#             'Energy density discharge': (frame['WE(1).Potential (V)'].max() ** 2 * q_discharge) / 2,
+#         })
+
+#     if save_results == 'y':
+#         pd.DataFrame(results).to_excel(HOME_FOLDER / f'{outname}.xlsx', index=False)
+
+# def plot_gcd_curve(dataset, ylim = None ,save_plot = 'n', outname = 'GCD', labels = None):
+#     """
+#     Plot GCD curves at different current values and optionally save the plot and results.
+#     """
+#     # Prepare datasets
+#     df = [pd.concat([dataset[i], dataset[18 + i]]) for i in range(2, 18, 3)]
+#     df = [pd.concat([frame['Time (s)'] - frame['Time (s)'].iloc[0],
+#                      frame['WE(1).Potential (V)']], axis=1) for frame in df]
+#     fig, ax = plt.subplots()
+#     colors = ['#0a1170', '#cc9456', '#7a2233', '#be3b49', '#6c727a', '#6b9fe3']
+
+#     if labels is None:
+#         labels = ['5 mV/s', '10 mV/s', '20 mV/s', '50 mV/s', '100 mV/s',
+#                   '200 mV/s', '300 mV/s', '400 mV/s', '500 mV/s']
+#     if ylim is None:
+#         ylim = [-0.1, 0.9]
+#     for frame, color in zip(df, colors):
+#         ax.plot(frame['Time (s)'], frame['WE(1).Potential (V)'],
+#                 color=color, linestyle = '', marker = 'o', markersize = 1)
+
+#     ax.set_xlabel('Time (s)', weight = 'bold')
+#     ax.set_ylabel('Potential (V) vs SCE', weight = 'bold')
+#     ax.legend(labels, frameon=False,  markerscale=6)
+#     ax.set_ylim(ylim)
+#     fig.tight_layout()
+
+#     if save_plot == 'y':
+#         plt.savefig(HOME_FOLDER / f'{outname}.pdf')
 
 def plot_cv(data, saveplot='n', normalize=False, outname='CV',
             active_mass=None, colors=None, labels=None):
@@ -224,7 +337,6 @@ def integrate_cv(data, model = 'simpson'):
 
     return charge
 
-
 def plot_specific_cap(path): 
     """
     Plots specific capacitance for different charge/discharge currents
@@ -273,8 +385,45 @@ def plot_multiple_cv(pathtofiles, cv_scan_rate = '50 mV/s'):
     ]
 
     for index, data in enumerate(cv_data_dic):
-        ax.plot(data[cv_scan_rate]['Potential applied (V)'], data[cv_scan_rate]['WE(1).Current (A)'], 
+        ax.plot(data[cv_scan_rate]['Potential applied (V)'],
+                data[cv_scan_rate]['WE(1).Current (A)'],
                 label = names[index], color = colors[index])
         ax.set_xlabel('Potential (V)', weight = 'bold')
         ax.set_ylabel('Current (A)', weight = 'bold')
         ax.legend(frameon = False)
+
+def read_cycling(file_to_read):
+    """
+    Function to import an autolb generated cell-cycling text file
+    """
+    header_line = "Time (s)\tWE(1).Potential (V)"
+    blocks = []
+    current_block = []
+
+    with open(file_to_read, "r", encoding="utf-8-sig") as f:  # utf-8-sig removes BOM mark if present
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("Time (s)"):  # New block
+                if current_block:
+                    data = np.loadtxt(current_block)
+                    blocks.append(data)
+                    current_block = []
+            else:
+                current_block.append(line)
+
+    # Don’t forget to process the last block
+    if current_block:
+        data = np.loadtxt(current_block)
+        blocks.append(data)
+
+    return blocks
+
+def calculate_cycling_test_capacitance(data, electrochemical_window):
+    """
+    calculate capacitance values for a list of GCD curves
+    """
+    discharge_curves = data[1::2] # get the dischage curves only
+    results = np.array([(block[-1, 0] - block[0, 0]) / electrochemical_window for block in discharge_curves])
+    return results

@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: ElectropyTP
+Version: 0.3.0
+Summary: Python package for electrochemistry data analysis
+Author: Tiago Paiva
+Author-email: tgspaiva@gmail.com
+Classifier: Programming Language :: Python :: 3
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Requires-Dist: natsort
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: requires-dist
+Dynamic: summary

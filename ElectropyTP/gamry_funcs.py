@@ -234,11 +234,14 @@ def calculate_capacitance(dataset, current_values=1, saveresults="n", **kwargs):
         charge_time = charge_time_vals.iloc[0]
         discharge_start_idx = np.where(df["Potential"] == max_potential)[0][0] + 1
         discharge_time = df["Time"].iloc[-1] - df["Time"].iloc[discharge_start_idx]
+        min_potential = df["Potential"].iloc[0]
         max_potential = df["Potential"].iloc[discharge_start_idx]
-        q_charge = charge_time * current_value / max_potential
-        q_discharge = discharge_time * current_value / max_potential
+
+        electrochemical_window = abs(max_potential) + abs(min_potential)
+        q_charge = charge_time * current_value / electrochemical_window
+        q_discharge = discharge_time * current_value / electrochemical_window
         coulombic_efficiency = (discharge_time / charge_time) * 100
-        energy_density_factor = max_potential**2 / 2
+        energy_density_factor = electrochemical_window**2 / 2
         energy_charge = energy_density_factor * q_charge
         energy_discharge = energy_density_factor * q_discharge
 
@@ -340,7 +343,7 @@ def parse_lsv(filename):
     sorted_data_list = []
 
     for start, data in zip(exp_start, cv_text_files):
-        relevant_lines = data[1][start[0] + 3 :]
+        relevant_lines = data[1][start[0] + 3:]
         sorted_data = [
             [line.split("\t")[3], line.split("\t")[4], line.split("\t")[2]]
             for line in relevant_lines

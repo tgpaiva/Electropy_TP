@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ElectropyTP",  # Replace with your package name
-    version="0.2.0",
+    version="0.3.2",
     author="Tiago Paiva",
     author_email="tgspaiva@gmail.com.com",
     description="A python package for electrochemistry data analysis",
@@ -14,6 +14,9 @@ setup(
     install_requires=[
         "numpy", 
         "pandas",
+        "scipy",
+        "natsort",
+        "scikit-learn"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: ElectropyTP
-Version: 0.2.0
+Version: 0.3.2
 Summary: A python package for electrochemistry data analysis
 Home-page: https://github.com/tgpaiva/Electropy_TP
 Author: Tiago Paiva
@@ -10,6 +10,9 @@ Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 Requires-Dist: numpy
 Requires-Dist: pandas
+Requires-Dist: scipy
+Requires-Dist: natsort
+Requires-Dist: scikit-learn
 Dynamic: author
 Dynamic: author-email
 Dynamic: classifier
