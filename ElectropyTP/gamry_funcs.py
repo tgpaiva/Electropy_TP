@@ -234,9 +234,8 @@ def calculate_capacitance(dataset, current_values=1, saveresults="n", **kwargs):
         charge_time = charge_time_vals.iloc[0]
         discharge_start_idx = np.where(df["Potential"] == max_potential)[0][0] + 1
         discharge_time = df["Time"].iloc[-1] - df["Time"].iloc[discharge_start_idx]
-        min_potential = df["Potential"].iloc[0]
+        min_potential = df["Potential"].iloc[-1]
         max_potential = df["Potential"].iloc[discharge_start_idx]
-
         electrochemical_window = abs(max_potential) + abs(min_potential)
         q_charge = charge_time * current_value / electrochemical_window
         q_discharge = discharge_time * current_value / electrochemical_window

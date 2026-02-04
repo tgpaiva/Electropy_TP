@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ElectropyTP",  # Replace with your package name
-    version="0.3.2",
+    version="0.3.3",
     author="Tiago Paiva",
     author_email="tgspaiva@gmail.com.com",
     description="A python package for electrochemistry data analysis",
